@@ -132,9 +132,4 @@ start subspace_teardown.html  # Windows
 ## Author
 
 **Nikunj Bhardwaj**
-Automation & Robotics Engineering Student
 Stack: XGBoost · LSTMs · PyTorch · C++ · Python
-
----
-
-*Assignment deadline: Sunday, 31 May 2026, 11:59 PM IST*
