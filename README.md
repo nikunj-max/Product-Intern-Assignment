@@ -131,5 +131,5 @@ start subspace_teardown.html  # Windows
 
 ## Author
 
-**Nikunj Bhardwaj**
-Stack: XGBoost · LSTMs · PyTorch · C++ · Python
+- **Nikunj Bhardwaj**
+- **Stack:** XGBoost · LSTMs · PyTorch · C++ · Python
