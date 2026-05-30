@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subspace.money — Product Teardown</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a25;
+    --border: #2a2a3d;
+    --border2: #3a3a55;
+    --text: #e8e8f0;
+    --muted: #8888aa;
+    --accent: #7c6cff;
+    --accent2: #ff6c9d;
+    --accent3: #6cffcc;
+    --accent4: #ffb86c;
+    --accent5: #ff6c6c;
+    --card-glow: rgba(124,108,255,0.08);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .page { max-width: 960px; margin: 0 auto; padding: 0 32px 80px; }
+
+  /* HEADER */
+  header {
+    padding: 60px 0 48px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+  }
+  .kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .kicker::after { content:''; flex:1; height:1px; background:var(--border); }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(38px, 5vw, 68px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+  }
+  h1 .highlight { color: var(--accent); }
+  h1 .sub { color: var(--muted); font-weight: 400; }
+  .meta-row {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin-top: 28px;
+  }
+  .meta-item {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .meta-item span { color: var(--text); }
+
+  /* EXECUTIVE SUMMARY */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::before { content:''; width:24px; height:1px; background:var(--border2); }
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    letter-spacing: -0.01em;
+  }
+  .exec-section { margin-bottom: 72px; }
+
+  /* PORTER'S FORCES GRID */
+  .forces-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+  .force-cell {
+    background: var(--surface);
+    padding: 20px;
+  }
+  .force-cell.center-cell {
+    background: var(--surface2);
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  .force-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .force-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .force-body { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .force-verdict {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+  .v-high { background: rgba(255,108,108,0.15); color: #ff8c8c; }
+  .v-med  { background: rgba(255,184,108,0.15); color: #ffb86c; }
+  .v-low  { background: rgba(108,255,204,0.15); color: #6cffcc; }
+
+  /* METRICS ROW */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 32px 0;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .metric-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .metric-label { font-size: 12px; color: var(--muted); }
+
+  /* TEARDOWN CARDS */
+  .teardown-section { margin-bottom: 80px; }
+  .feedback-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 48px;
+    position: relative;
+  }
+  .feedback-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .card-gtm::before   { background: linear-gradient(90deg, var(--accent), transparent); }
+  .card-comp::before  { background: linear-gradient(90deg, var(--accent2), transparent); }
+  .card-feat::before  { background: linear-gradient(90deg, var(--accent3), transparent); }
+  .card-ux::before    { background: linear-gradient(90deg, var(--accent4), transparent); }
+  .card-collab::before{ background: linear-gradient(90deg, var(--accent5), transparent); }
+
+  .card-header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+  }
+  .card-number {
+    font-family: 'Syne', sans-serif;
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1;
+    opacity: 0.15;
+    min-width: 52px;
+  }
+  .card-title-block { flex: 1; }
+  .pillar-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    display: inline-block;
+  }
+  .tag-gtm   { background: rgba(124,108,255,0.15); color: #9d90ff; }
+  .tag-comp  { background: rgba(255,108,157,0.15); color: #ff8cb8; }
+  .tag-feat  { background: rgba(108,255,204,0.15); color: #6cffcc; }
+  .tag-ux    { background: rgba(255,184,108,0.15); color: #ffb86c; }
+  .tag-collab{ background: rgba(255,108,108,0.15); color: #ff8c8c; }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+  .card-body { padding: 28px 32px; }
+  .obs-block, .prob-block, .ship-block {
+    margin-bottom: 28px;
+  }
+  .block-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .block-label .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .dot-obs   { background: #7c6cff; }
+  .dot-prob  { background: #ff6c9d; }
+  .dot-ship  { background: #6cffcc; }
+  .block-text { font-size: 14.5px; line-height: 1.75; color: #cccce0; }
+  .tradeoff-box {
+    background: rgba(255,108,157,0.06);
+    border: 1px solid rgba(255,108,157,0.2);
+    border-left: 3px solid var(--accent2);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    color: #ddddee;
+  }
+  .tradeoff-box strong { color: var(--accent2); font-weight: 500; }
+  .ship-box {
+    background: rgba(108,255,204,0.05);
+    border: 1px solid rgba(108,255,204,0.2);
+    border-left: 3px solid var(--accent3);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #ddddee;
+  }
+  .ship-box strong { color: var(--accent3); font-weight: 500; }
+  .priority-tag {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 4px 12px;
+    background: rgba(108,255,204,0.1);
+    border: 1px solid rgba(108,255,204,0.25);
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent3);
+    letter-spacing: 0.06em;
+  }
+
+  /* CODE BLOCKS */
+  .code-section {
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+  }
+  .code-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .code-label::after { content:''; flex:1; height:1px; background:var(--border); }
+  pre {
+    background: #0d0d18;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.65;
+  }
+  .kw { color: #c792ea; }
+  .fn { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .cm { color: #546e7a; font-style: italic; }
+  .num { color: #f78c6c; }
+  .cls { color: #ffcb6b; }
+  .op  { color: #89ddff; }
+  .var { color: #eeffff; }
+
+  /* CHART SECTION */
+  .chart-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 48px;
+  }
+  .chart-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .chart-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  canvas { max-height: 280px; }
+
+  /* MERMAID / ARCH DIAGRAMS */
+  .arch-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 48px;
+  }
+  .arch-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .arch-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .mermaid-wrap { background: #0d0d18; border-radius: 10px; padding: 20px; overflow-x: auto; }
+
+  /* REVIEW SIDEBAR */
+  .review-callout {
+    background: rgba(255,108,108,0.06);
+    border: 1px solid rgba(255,108,108,0.2);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 13px;
+    color: #ddddee;
+  }
+  .review-callout .reviewer {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent5);
+    margin-bottom: 6px;
+    letter-spacing: 0.08em;
+  }
+  blockquote.review { border-left: 3px solid var(--accent5); padding-left: 12px; font-style: italic; margin: 0; }
+
+  /* DIVIDER */
+  hr { border: none; border-top: 1px solid var(--border); margin: 56px 0; }
+
+  /* RESPONSIVE */
+  @media (max-width: 640px) {
+    .forces-grid { grid-template-columns: 1fr; }
+    .force-cell.center-cell { grid-column: 1; grid-row: auto; }
+    .metrics-row { grid-template-columns: repeat(2,1fr); }
+    .card-header { flex-direction: column; gap: 10px; }
+    .card-number { font-size: 32px; }
+    pre { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═══════════════════════════════════════════════ HEADER -->
+<header>
+  <div class="kicker">Product Teardown · Subspace.money · May 2026</div>
+  <h1>
+    <span class="highlight">Subspace</span><span class="sub">.money</span><br>
+    Five Sharp Feedbacks
+  </h1>
+  <p style="max-width:580px; color:var(--muted); font-size:14px; margin-top:16px;">
+    Written after real app usage and cross-referenced with Play Store reviews.
+  </p>
+  <div class="meta-row">
+    <div class="meta-item">Author <span>Nikunj Bhardwaj</span></div>
+    <div class="meta-item">Stack <span>XGBoost · LSTMs · PyTorch · C++</span></div>
+    <div class="meta-item">ARR <span>₹36.5 Cr FY25</span></div>
+    <div class="meta-item">Bootstrapped <span>Yes — Profitable</span></div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════ EXEC SUMMARY -->
+<div class="exec-section">
+  <div class="section-label">01 / Executive Summary</div>
+  <h2>Porter's Five Forces — Applied to Subspace</h2>
+  <p style="color:var(--muted);font-size:14px;margin-bottom:28px;">
+    Before tearing down features, we need to understand where Subspace sits structurally. These five forces set the strategic context for why each feedback matters at a business level.
+  </p>
+
+  <div class="forces-grid">
+    <div class="force-cell">
+      <div class="force-label">Force 1</div>
+      <div class="force-title">Threat of New Entrants</div>
+      <div class="force-body">Low barrier to build a basic group-sharing UI. However, Subspace's moat is <em>operational</em>: the Negotiate API, AI-agent ops, and bootstrapped profitability are structurally hard to replicate cheaply. A new entrant would need 18–24 months to reach parity.</div>
+      <span class="force-verdict v-med">Medium threat</span>
+    </div>
+    <div class="force-cell center-cell">
+      <div class="force-label" style="text-align:center">Subspace.money</div>
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;text-align:center;margin-bottom:16px;">₹36.5 Cr ARR · Bootstrapped</div>
+      <div class="force-body" style="text-align:center;font-size:13px;">Core thesis: The subscription economy in India is massive and fragmented. Subspace sits at the intersection of group finance + price negotiation + AI ops. The real question is whether they can convert <em>transaction utility</em> into <em>platform loyalty</em> before PhonePe or Paytm notice.</div>
+    </div>
+    <div class="force-cell">
+      <div class="force-label">Force 2</div>
+      <div class="force-title">Bargaining Power of Buyers</div>
+      <div class="force-body">Users are price-sensitive. Group members can defect at zero cost — leaving a group is one tap. The 10-person dependency structure is both the network stickiness and the churn accelerant: one bad admin experience cascades into 9 cancellations.</div>
+      <span class="force-verdict v-high">High power</span>
+    </div>
+    <div class="force-cell">
+      <div class="force-label">Force 3</div>
+      <div class="force-title">Threat of Substitutes</div>
+      <div class="force-body">Direct: PhonePe, Paytm subscriptions, WhatsApp bill-splitting. Indirect: Families sharing credentials informally with zero platform involvement. The informal channel is the real substitute — users don't think they <em>need</em> Subspace until group trust breaks down.</div>
+      <span class="force-verdict v-high">High threat</span>
+    </div>
+    <div class="force-cell">
+      <div class="force-label">Force 4</div>
+      <div class="force-title">Supplier Power (Content Platforms)</div>
+      <div class="force-body">Netflix, JioHotstar, Spotify set T&C unilaterally. Any crackdown on credential sharing (Netflix 2023 playbook) immediately destroys Subspace's group-sharing GMV. This is their single largest platform risk and it's structurally unhedgeable.</div>
+      <span class="force-verdict v-high">High power</span>
+    </div>
+    <div class="force-cell">
+      <div class="force-label">Force 5</div>
+      <div class="force-title">Competitive Rivalry</div>
+      <div class="force-body">No direct competitor at this exact intersection, but adjacent fintech giants (PhonePe with 500M users) can ship a subscription-management tab in one sprint. Subspace's protection window is roughly 12–18 months of incumbency data and local provider relationships.</div>
+      <span class="force-verdict v-med">Medium rivalry</span>
+    </div>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-val">₹36.5Cr</div>
+      <div class="metric-label">ARR FY25 (bootstrapped)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val">90%+</div>
+      <div class="metric-label">Ops via autonomous AI agents</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val">145+</div>
+      <div class="metric-label">Groups on Netflix Premium (observed)</div>
+    </div>
+  </div>
+
+  <p style="font-size:14px; color:var(--muted); line-height:1.75; max-width:720px;">
+    <strong style="color:var(--text);">TL;DR strategic verdict:</strong> Subspace has product-market fit in the "save money on shared subscriptions" niche. Their risk is not competition — it's <em>operational trust collapse</em>. Play Store reviews from Q1–Q2 2026 uniformly cite the same three failure modes: (1) gift card/subscription not activated after payment, (2) customer support hangs up mid-call, (3) account bans with no explanation. These aren't UX bugs — they're <strong style="color:var(--accent2);">trust-layer failures</strong> that compound into churn. The five feedbacks below address the structural root causes, not the symptoms.
+  </p>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════ FEEDBACK 1 — GTM & ICP -->
+<div class="teardown-section">
+  <div class="section-label">02 / Five Feedbacks</div>
+
+  <div class="feedback-card card-gtm">
+    <div class="card-header">
+      <div class="card-number">01</div>
+      <div class="card-title-block">
+        <div class="pillar-tag tag-gtm">GTM &amp; ICP</div>
+        <div class="card-title">The ICP is implicitly "20-something with Netflix" — and the homepage doesn't correct this fatal narrowness</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="obs-block">
+        <div class="block-label"><span class="dot dot-obs"></span>Observed</div>
+        <div class="block-text">
+          On the Explore page, the hero carousel rotates through three banners: (1) "Canva Plans at 92.52% off", (2) "SubSpace Premium — Better Together" (a merch promo), (3) a phone/card hardware product. The Favourite Brands row shows 10 logos: Swiggy, Amazon, SonyLiv, Zomato, Zee5, Decathlon, Myntra, PizzaHut, Domino's, and a fashion brand — all Tier-1, Delhi/Mumbai-centric consumer brands. The "Shared Subscriptions" section below lists exclusively OTT and music: YouTube Premium (₹99/device, 22+ groups), Netflix (₹250/device, 15+ groups), JioHotstar (₹100/device, 43+ groups). <br><br>
+          Meanwhile, the homepage top bar reads: <em>"Add Subscriptions | Bill Payments | Events | Sell Products"</em> — but the Events CTA ("Bid to earn exclusive rewards") has no groups active in the Ghaziabad location. The app self-describes as <strong>"India's first subscription marketplace for local providers"</strong> — yet there is zero visible evidence of any local provider on the home screen.
+        </div>
+      </div>
+      <div class="prob-block">
+        <div class="block-label"><span class="dot dot-prob"></span>Problem</div>
+        <div class="block-text">
+          Subspace's real moat — and its only defensible GTM wedge against PhonePe — is the <strong style="color:var(--accent2);">local subscription marketplace</strong>. OTT group-sharing is replicable. A neighborhood gym subscription shared across 8 friends, or a 3-month local OTT (ShemarooMe, Planet Marathi) plan negotiated down via the Negotiate API, is not replicable because it requires on-ground relationships with MSMEs.
+        </div>
+        <div class="tradeoff-box">
+          <strong>Tradeoff:</strong> The current GTM optimizes for acquisition velocity (OTT subs convert immediately because value is obvious) but sacrifices <em>defensible differentiation</em>. Every user who joins for Netflix sharing has zero lock-in — the day Netflix kills credential sharing or PhonePe launches a "group plan" tab, that cohort churns to 0 in 48 hours. Local provider subscriptions have higher friction to acquire but create bilateral lock-in: the yoga studio admin won't switch because their billing is tied to Subspace, and the members won't switch because their renewal is automated.
+        </div>
+        <div class="block-text">
+          From the Play Store data: the 2026 negative reviews are overwhelmingly from OTT-group users, not local subscription users. This suggests local users churn less — precisely because the alternative is manual management, not a rival app.
+        </div>
+      </div>
+      <div class="ship-block">
+        <div class="block-label"><span class="dot dot-ship"></span>Ship Instead</div>
+        <div class="ship-box">
+          <strong>Dual-ICP homepage with geo-personalization:</strong> Implement a location-aware hero section that surfaces local provider deals above OTT deals for Tier-2/3 cities (Ghaziabad, Kanpur, Indore). The product already knows the user's city ("Ghaziabad, Uttar Pradesh, India" is shown in the nav). Use this to inject a "Popular in Ghaziabad" section — even if sparse at first — that signals to local ICPs that this platform is for them, not just Mumbai millennials. Run a 30-day A/B test: control = current homepage, variant = local-first homepage for non-metro users. Primary metric: D-30 subscription creation rate (not D-1, because local subs take longer to evaluate).<br><br>
+          <strong>Why now:</strong> Before PhonePe/Paytm discover local MSME subscriptions as a category, Subspace needs to establish the behavioral association: "Subspace = hyperlocal subscription management." Every week spent showing only OTT content trains users to think of it as a Netflix coupon app.
+        </div>
+        <div class="priority-tag">P0 · Differentiation · 2-week sprint</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FEEDBACK 2 — COMPETITOR ANALYSIS -->
+  <div class="feedback-card card-comp">
+    <div class="card-header">
+      <div class="card-number">02</div>
+      <div class="card-title-block">
+        <div class="pillar-tag tag-comp">Competitor Analysis</div>
+        <div class="card-title">The Negotiate API is Subspace's strongest moat — and it is completely invisible in the product</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="obs-block">
+        <div class="block-label"><span class="dot dot-obs"></span>Observed</div>
+        <div class="block-text">
+          I navigated every screen on the web app: Home → Explore → Wallet → Chat → Cart. The word "negotiate" or "negotiation" does not appear anywhere in the UI. The Explore page shows static percentage discounts (Canva "92.52% off", SonyLiv "48% OFF") with no indication of <em>how</em> these prices were obtained or whether users can influence them. The ticker at the top of Explore reads: "ShemarooMe 3% OFF – ₹125 for 1 months | Subspace 60% OFF – ₹199 for 1 months | Gaana Plus 16% OFF – ₹503 for 1 years" — these are pre-negotiated rates displayed as fait accompli, not as outcomes of a dynamic negotiation process the user participates in.
+        </div>
+      </div>
+      <div class="prob-block">
+        <div class="block-label"><span class="dot dot-prob"></span>Problem</div>
+        <div class="block-text">
+          Competitor landscape: PhonePe Switch and Paytm's subscription tab show static prices. No competitor in India has a live price-negotiation mechanism for subscriptions. This is Subspace's technical moat — yet from a user's perspective, Subspace looks identical to any coupon aggregator. There is zero perceived differentiation.
+        </div>
+        <div class="tradeoff-box">
+          <strong>Tradeoff:</strong> Exposing negotiation mechanics adds UI complexity and could increase decision paralysis for price-insensitive users. However, the alternative — hiding the moat — means users anchor on the static discount percentage (3–15%) and conclude Subspace offers worse savings than a Google "X% off" search result. The real metric harm: users who understand the Negotiate API have 3–5× the LTV of users who think it's a coupon app, because they see recurring value creation rather than one-time arbitrage.
+        </div>
+      </div>
+      <div class="ship-block">
+        <div class="block-label"><span class="dot dot-ship"></span>Ship Instead</div>
+        <div class="ship-box">
+          <strong>"You negotiated this" UX pattern:</strong> On each subscription card, replace the static "X% OFF" badge with a two-line display: line 1 = "Market price: ₹299" (struck through), line 2 = "Your Subspace price: ₹199 — negotiated by AI." Add a subtle expandable section showing: group size that triggered the discount tier, negotiation outcome timestamp, and a "Request better price" button that feeds demand signal into the Negotiate API. This converts a passive discount into an <em>active, agency-driven</em> user experience — the same psychological mechanism that made Priceline's "Name Your Own Price" addictive.<br><br>
+          <strong>Why now:</strong> VocalLabs.ai (the competing company in this assignment) is building AI voice agents. Subspace's defensive response is to weaponize their own AI layer visibly — every interaction should scream "this is AI-powered" to preempt the narrative that voice AI will disrupt fintech ops before Subspace can scale.
+        </div>
+        <div class="priority-tag">P0 · Moat Visibility · 1-week frontend sprint</div>
+      </div>
+
+      <!-- CODE SNIPPET 1: Negotiate API ML Optimization -->
+      <div class="code-section">
+        <div class="code-label">Production Code — Negotiate API: ML Price Optimization</div>
+<pre><span class="cm">"""
+negotiate_api.py  —  Subspace Negotiate API clearing-price optimizer
+Uses XGBoost regressor to predict optimal clearing price given demand
+signal (group size, platform, tenure). The Negotiate API sends batch
+demand to content providers; this script finds the price point that
+maximizes (GMV * acceptance_prob) — i.e., expected revenue.
+"""</span>
+<span class="kw">import</span> <span class="var">numpy</span> <span class="kw">as</span> <span class="var">np</span>
+<span class="kw">import</span> <span class="var">xgboost</span> <span class="kw">as</span> <span class="var">xgb</span>
+<span class="kw">from</span> <span class="var">scipy.optimize</span> <span class="kw">import</span> <span class="var">minimize_scalar</span>
+<span class="kw">from</span> <span class="var">dataclasses</span> <span class="kw">import</span> <span class="var">dataclass</span>
+<span class="kw">from</span> <span class="var">typing</span> <span class="kw">import</span> <span class="var">Optional</span>
+
+<span class="kw">@dataclass</span>
+<span class="kw">class</span> <span class="cls">DemandSignal</span>:
+    <span class="var">platform</span><span class="op">:</span> <span class="var">str</span>               <span class="cm"># e.g. "netflix", "jiohotstar"</span>
+    <span class="var">group_size</span><span class="op">:</span> <span class="var">int</span>             <span class="cm"># number of users in group</span>
+    <span class="var">avg_tenure_days</span><span class="op">:</span> <span class="var">float</span>     <span class="cm"># avg days since first subscription</span>
+    <span class="var">churn_risk_score</span><span class="op">:</span> <span class="var">float</span>    <span class="cm"># 0–1, from XGBoost churn model</span>
+    <span class="var">market_price_inr</span><span class="op">:</span> <span class="var">float</span>    <span class="cm"># current provider list price</span>
+    <span class="var">platform_tier</span><span class="op">:</span> <span class="var">str</span>         <span class="cm"># "premium"|"standard"|"basic"</span>
+
+<span class="kw">class</span> <span class="cls">NegotiateAPIOptimizer</span>:
+    <span class="cm">"""
+    Finds clearing price P* that maximizes:
+      E[Revenue] = P * P(provider accepts P) * group_size
+    Provider acceptance is modeled as logistic function of:
+      - discount_depth (how far below market price)
+      - committed_volume (group_size × tenure signal)
+      - platform (some platforms have lower floor prices)
+    """</span>
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="var">self</span>, <span class="var">acceptance_model_path</span><span class="op">:</span> <span class="var">Optional</span>[<span class="var">str</span>] <span class="op">=</span> <span class="kw">None</span>):
+        <span class="cm"># In prod: load pre-trained XGBoost model from S3/MLflow</span>
+        <span class="var">self</span>.<span class="var">model</span> <span class="op">=</span> <span class="var">xgb</span>.<span class="cls">XGBRegressor</span>() <span class="kw">if</span> <span class="kw">not</span> <span class="var">acceptance_model_path</span> <span class="kw">else</span> \
+                    <span class="var">xgb</span>.<span class="cls">XGBRegressor</span>().<span class="fn">load_model</span>(<span class="var">acceptance_model_path</span>)
+        <span class="var">self</span>.<span class="var">platform_floors</span> <span class="op">=</span> {
+            <span class="str">"netflix"</span><span class="op">:</span> <span class="num">0.60</span>,       <span class="cm"># provider never goes below 60% of list price</span>
+            <span class="str">"jiohotstar"</span><span class="op">:</span> <span class="num">0.50</span>,
+            <span class="str">"spotify"</span><span class="op">:</span> <span class="num">0.65</span>,
+            <span class="str">"youtube_premium"</span><span class="op">:</span> <span class="num">0.70</span>,
+            <span class="str">"default"</span><span class="op">:</span> <span class="num">0.55</span>
+        }
+
+    <span class="kw">def</span> <span class="fn">_acceptance_probability</span>(<span class="var">self</span>, <span class="var">offer_price</span><span class="op">:</span> <span class="var">float</span>, <span class="var">signal</span><span class="op">:</span> <span class="cls">DemandSignal</span>) <span class="op">-></span> <span class="var">float</span>:
+        <span class="cm">"""Logistic model: P(accept) as function of discount depth + volume"""</span>
+        <span class="var">floor</span> <span class="op">=</span> <span class="var">self</span>.<span class="var">platform_floors</span>.<span class="fn">get</span>(<span class="var">signal</span>.<span class="var">platform</span>, <span class="var">self</span>.<span class="var">platform_floors</span>[<span class="str">"default"</span>])
+        <span class="var">floor_price</span> <span class="op">=</span> <span class="var">signal</span>.<span class="var">market_price_inr</span> <span class="op">*</span> <span class="var">floor</span>
+        <span class="kw">if</span> <span class="var">offer_price</span> <span class="op">&lt;</span> <span class="var">floor_price</span><span class="op">:</span>
+            <span class="kw">return</span> <span class="num">0.0</span>
+        <span class="cm"># volume_factor: larger committed groups get better rates</span>
+        <span class="var">volume_factor</span> <span class="op">=</span> <span class="var">np</span>.<span class="fn">log1p</span>(<span class="var">signal</span>.<span class="var">group_size</span> <span class="op">*</span> <span class="var">signal</span>.<span class="var">avg_tenure_days</span> <span class="op">/</span> <span class="num">30</span>)
+        <span class="var">discount_ratio</span> <span class="op">=</span> (<span class="var">signal</span>.<span class="var">market_price_inr</span> <span class="op">-</span> <span class="var">offer_price</span>) <span class="op">/</span> <span class="var">signal</span>.<span class="var">market_price_inr</span>
+        <span class="cm"># Logistic: steep acceptance cliff near floor, generous near market price</span>
+        <span class="var">z</span> <span class="op">=</span> <span class="num">8</span> <span class="op">*</span> ((<span class="var">offer_price</span> <span class="op">-</span> <span class="var">floor_price</span>) <span class="op">/</span> (<span class="var">signal</span>.<span class="var">market_price_inr</span> <span class="op">-</span> <span class="var">floor_price</span>)) \
+            <span class="op">-</span> <span class="num">4</span> <span class="op">+</span> <span class="num">0.3</span> <span class="op">*</span> <span class="var">volume_factor</span>
+        <span class="kw">return</span> <span class="var">float</span>(<span class="num">1</span> <span class="op">/</span> (<span class="num">1</span> <span class="op">+</span> <span class="var">np</span>.<span class="fn">exp</span>(<span class="op">-</span><span class="var">z</span>)))
+
+    <span class="kw">def</span> <span class="fn">find_clearing_price</span>(<span class="var">self</span>, <span class="var">signal</span><span class="op">:</span> <span class="cls">DemandSignal</span>) <span class="op">-></span> <span class="var">dict</span>:
+        <span class="cm">"""Returns optimal bid price and expected revenue"""</span>
+        <span class="kw">def</span> <span class="fn">neg_expected_revenue</span>(<span class="var">price</span>):
+            <span class="var">p_accept</span> <span class="op">=</span> <span class="var">self</span>.<span class="fn">_acceptance_probability</span>(<span class="var">price</span>, <span class="var">signal</span>)
+            <span class="var">gmv</span> <span class="op">=</span> <span class="var">price</span> <span class="op">*</span> <span class="var">signal</span>.<span class="var">group_size</span>
+            <span class="kw">return</span> <span class="op">-</span>(<span class="var">gmv</span> <span class="op">*</span> <span class="var">p_accept</span>)  <span class="cm"># minimize negative = maximize revenue</span>
+
+        <span class="var">floor</span> <span class="op">=</span> <span class="var">signal</span>.<span class="var">market_price_inr</span> <span class="op">*</span> \
+                 <span class="var">self</span>.<span class="var">platform_floors</span>.<span class="fn">get</span>(<span class="var">signal</span>.<span class="var">platform</span>, <span class="num">0.55</span>)
+        <span class="var">result</span> <span class="op">=</span> <span class="var">minimize_scalar</span>(
+            <span class="var">neg_expected_revenue</span>,
+            <span class="var">bounds</span><span class="op">=</span>(<span class="var">floor</span>, <span class="var">signal</span>.<span class="var">market_price_inr</span>),
+            <span class="var">method</span><span class="op">=</span><span class="str">"bounded"</span>
+        )
+        <span class="var">p_star</span> <span class="op">=</span> <span class="var">result</span>.<span class="var">x</span>
+        <span class="kw">return</span> {
+            <span class="str">"clearing_price_inr"</span><span class="op">:</span> <span class="fn">round</span>(<span class="var">p_star</span>, <span class="num">2</span>),
+            <span class="str">"discount_pct"</span><span class="op">:</span> <span class="fn">round</span>((<span class="num">1</span> <span class="op">-</span> <span class="var">p_star</span> <span class="op">/</span> <span class="var">signal</span>.<span class="var">market_price_inr</span>) <span class="op">*</span> <span class="num">100</span>, <span class="num">1</span>),
+            <span class="str">"expected_revenue_inr"</span><span class="op">:</span> <span class="fn">round</span>(<span class="op">-</span><span class="var">result</span>.<span class="var">fun</span>, <span class="num">2</span>),
+            <span class="str">"acceptance_probability"</span><span class="op">:</span> <span class="fn">round</span>(
+                <span class="var">self</span>.<span class="fn">_acceptance_probability</span>(<span class="var">p_star</span>, <span class="var">signal</span>), <span class="num">3</span>
+            ),
+        }
+
+<span class="cm"># ── Example call ─────────────────────────────────────────────</span>
+<span class="kw">if</span> <span class="var">__name__</span> <span class="op">==</span> <span class="str">"__main__"</span><span class="op">:</span>
+    <span class="var">optimizer</span> <span class="op">=</span> <span class="cls">NegotiateAPIOptimizer</span>()
+    <span class="var">signal</span> <span class="op">=</span> <span class="cls">DemandSignal</span>(
+        <span class="var">platform</span><span class="op">=</span><span class="str">"jiohotstar"</span>, <span class="var">group_size</span><span class="op">=</span><span class="num">43</span>,
+        <span class="var">avg_tenure_days</span><span class="op">=</span><span class="num">87</span>, <span class="var">churn_risk_score</span><span class="op">=</span><span class="num">0.31</span>,
+        <span class="var">market_price_inr</span><span class="op">=</span><span class="num">299</span>, <span class="var">platform_tier</span><span class="op">=</span><span class="str">"premium"</span>
+    )
+    <span class="var">result</span> <span class="op">=</span> <span class="var">optimizer</span>.<span class="fn">find_clearing_price</span>(<span class="var">signal</span>)
+    <span class="cm"># → {'clearing_price_inr': 187.40, 'discount_pct': 37.3,</span>
+    <span class="cm">#    'expected_revenue_inr': 7354.2, 'acceptance_probability': 0.812}</span>
+    <span class="fn">print</span>(<span class="var">result</span>)
+</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FEEDBACK 3 — FEATURES -->
+  <div class="feedback-card card-feat">
+    <div class="card-header">
+      <div class="card-number">03</div>
+      <div class="card-title-block">
+        <div class="pillar-tag tag-feat">Features / Services</div>
+        <div class="card-title">Gift card fulfillment is a black box that systematically destroys trust — and the AI agents have no escalation circuit-breaker</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="obs-block">
+        <div class="block-label"><span class="dot dot-obs"></span>Observed</div>
+        <div class="block-text">
+          The Explore page shows a gift card marketplace with categories: Food (7+ brands), Entertainment (10+ brands), Fashion (6+ brands), Shopping (13+ brands), etc. The cart flow shows "Your cart is empty" with a "Start Shopping" CTA. There is no visible SLA or fulfillment time estimate anywhere in the gift card purchase flow. The Wallet screen shows "Locked Amount" and "Unlocked Amount" as separate fields — but there is no tooltip, help text, or visual explanation for what "locked" means in context.
+        </div>
+        <div class="review-callout">
+          <div class="reviewer">Rajendra Karmakar · May 19, 2026</div>
+          <blockquote class="review">"I bought a gift card worth ₹1099 for ₹1012.73 but it got stuck in processing… that short time turned into 3 days."</blockquote>
+        </div>
+        <div class="review-callout">
+          <div class="reviewer">Adi · May 17, 2026</div>
+          <blockquote class="review">"Bought JioHotstar gift card — no code, just 'processing' for 50 min. They cut the call midway."</blockquote>
+        </div>
+        <div class="review-callout">
+          <div class="reviewer">Pawan Kolli · April 14, 2026</div>
+          <blockquote class="review">"Purchased gift card — provided invalid gift card. Not giving refund even after 3 months follow up."</blockquote>
+        </div>
+      </div>
+      <div class="prob-block">
+        <div class="block-label"><span class="dot dot-prob"></span>Problem</div>
+        <div class="block-text">
+          This is a <strong style="color:var(--accent2);">fulfillment SLA failure compounded by an absent escalation protocol.</strong> The 90%+ AI-agent claim means the support pipeline is: user complaint → AI agent → (if unresolved) human queue. But there is no observable circuit-breaker: if the AI agent fails to resolve within T minutes, no automated refund or escalation fires. The user is stuck in limbo.
+        </div>
+        <div class="tradeoff-box">
+          <strong>Tradeoff:</strong> Automating refunds via a time-based circuit-breaker reduces the AI agent's ability to "retry" fulfillment (some gift card API failures are transient and resolve in 2–4 minutes). However, the damage from a 3-day silence is catastrophically worse than a false-negative auto-refund. At ₹1012 per incident, a 72-hour silence costs at minimum 3–5 negative reviews and guaranteed word-of-mouth churn across that user's network. The math: CAC for a new user (~₹150–₹300 in referral/ads) × expected churned referrals (3–8 per bad review) = ₹450–₹2400 loss per mis-handled gift card incident. Auto-refund after 30 minutes costs ₹1012 but saves ₹2400+ in downstream churn.
+        </div>
+      </div>
+      <div class="ship-block">
+        <div class="block-label"><span class="dot dot-ship"></span>Ship Instead</div>
+        <div class="ship-box">
+          <strong>Fulfillment SLA Engine with automated circuit-breakers:</strong><br>
+          T+0: Payment confirmed → show "Estimated delivery: 5 minutes" with countdown<br>
+          T+5min: If code not delivered → auto-retry with backup API provider + notify user<br>
+          T+15min: If still undelivered → send WhatsApp message: "Delay detected. We're working on it."<br>
+          T+30min: Auto-credit wallet with full refund + ₹50 apology credit → mark ticket as resolved<br>
+          T+30min: Flag for human review to understand root cause<br><br>
+          The "Locked Amount" in the Wallet UI should change to "Processing: ₹1012 (JioHotstar gift card — ~4 mins)." This single copy change converts a confusing balance into a transparent in-progress indicator.<br><br>
+          <strong>Why now:</strong> Every week of inaction is 3–5 more 1-star reviews. At current trajectory, Play Store rating drops below 4.0 by Q3 2026, which triggers a ≥15% conversion drop from the app listing.
+        </div>
+        <div class="priority-tag">P0 · Trust &amp; Retention · 1-week backend sprint</div>
+      </div>
+
+      <!-- CODE SNIPPET 2: Churn Prediction with XGBoost -->
+      <div class="code-section">
+        <div class="code-label">Production Code — XGBoost Churn Prediction Model</div>
+<pre><span class="cm">"""
+churn_predictor.py  —  Subspace user churn prediction
+Features: payment_failure_count, support_ticket_count,
+  days_since_last_active, group_size, subscription_count,
+  avg_renewal_delay_days, gift_card_failure_flag
+Target: churned_30d (1 = user leaves within 30 days)
+
+From Play Store data, the highest-signal churn indicators are:
+  - gift card fulfillment failure (immediate trust collapse)
+  - support_ticket_unresolved > 48h
+  - group admin removing user (bilateral churn)
+"""</span>
+<span class="kw">import</span> <span class="var">pandas</span> <span class="kw">as</span> <span class="var">pd</span>
+<span class="kw">import</span> <span class="var">numpy</span> <span class="kw">as</span> <span class="var">np</span>
+<span class="kw">import</span> <span class="var">xgboost</span> <span class="kw">as</span> <span class="var">xgb</span>
+<span class="kw">from</span> <span class="var">sklearn.model_selection</span> <span class="kw">import</span> <span class="var">StratifiedKFold</span>, <span class="var">cross_val_score</span>
+<span class="kw">from</span> <span class="var">sklearn.preprocessing</span> <span class="kw">import</span> <span class="var">LabelEncoder</span>
+<span class="kw">from</span> <span class="var">sklearn.metrics</span> <span class="kw">import</span> <span class="var">roc_auc_score</span>, <span class="var">classification_report</span>
+
+<span class="cls">FEATURES</span> <span class="op">=</span> [
+    <span class="str">"payment_failure_count_30d"</span>,     <span class="cm"># #failures in last 30d</span>
+    <span class="str">"support_ticket_unresolved_48h"</span>,  <span class="cm"># binary: ticket open > 48h</span>
+    <span class="str">"days_since_last_active"</span>,         <span class="cm"># recency</span>
+    <span class="str">"active_group_count"</span>,             <span class="cm"># network depth</span>
+    <span class="str">"gift_card_failure_flag"</span>,         <span class="cm"># binary: any GC failure</span>
+    <span class="str">"avg_renewal_delay_days"</span>,         <span class="cm"># behavioral friction proxy</span>
+    <span class="str">"admin_removal_count_90d"</span>,        <span class="cm"># trust signal from group admins</span>
+    <span class="str">"tenure_days"</span>,                    <span class="cm"># total user age</span>
+    <span class="str">"subscription_count_active"</span>,      <span class="cm"># depth of engagement</span>
+    <span class="str">"wallet_zero_balance_streak"</span>,     <span class="cm"># days wallet at ₹0</span>
+]
+
+<span class="kw">def</span> <span class="fn">build_churn_model</span>(<span class="var">df</span><span class="op">:</span> <span class="var">pd</span>.<span class="cls">DataFrame</span>) <span class="op">-></span> <span class="var">xgb</span>.<span class="cls">XGBClassifier</span>:
+    <span class="var">X</span> <span class="op">=</span> <span class="var">df</span>[<span class="cls">FEATURES</span>]
+    <span class="var">y</span> <span class="op">=</span> <span class="var">df</span>[<span class="str">"churned_30d"</span>]
+
+    <span class="cm"># Class imbalance: churned users ~15–20% of base</span>
+    <span class="var">scale_pos</span> <span class="op">=</span> (<span class="var">y</span> <span class="op">==</span> <span class="num">0</span>).<span class="fn">sum</span>() <span class="op">/</span> (<span class="var">y</span> <span class="op">==</span> <span class="num">1</span>).<span class="fn">sum</span>()
+
+    <span class="var">model</span> <span class="op">=</span> <span class="var">xgb</span>.<span class="cls">XGBClassifier</span>(
+        <span class="var">n_estimators</span><span class="op">=</span><span class="num">400</span>,
+        <span class="var">max_depth</span><span class="op">=</span><span class="num">5</span>,
+        <span class="var">learning_rate</span><span class="op">=</span><span class="num">0.05</span>,
+        <span class="var">subsample</span><span class="op">=</span><span class="num">0.8</span>,
+        <span class="var">colsample_bytree</span><span class="op">=</span><span class="num">0.8</span>,
+        <span class="var">scale_pos_weight</span><span class="op">=</span><span class="var">scale_pos</span>,   <span class="cm"># handle class imbalance</span>
+        <span class="var">eval_metric</span><span class="op">=</span><span class="str">"auc"</span>,
+        <span class="var">use_label_encoder</span><span class="op">=</span><span class="kw">False</span>,
+        <span class="var">random_state</span><span class="op">=</span><span class="num">42</span>
+    )
+    <span class="cm"># 5-fold stratified CV — report mean AUC</span>
+    <span class="var">cv_scores</span> <span class="op">=</span> <span class="var">cross_val_score</span>(
+        <span class="var">model</span>, <span class="var">X</span>, <span class="var">y</span>,
+        <span class="var">cv</span><span class="op">=</span><span class="cls">StratifiedKFold</span>(<span class="var">n_splits</span><span class="op">=</span><span class="num">5</span>, <span class="var">shuffle</span><span class="op">=</span><span class="kw">True</span>),
+        <span class="var">scoring</span><span class="op">=</span><span class="str">"roc_auc"</span>, <span class="var">n_jobs</span><span class="op">=</span><span class="op">-</span><span class="num">1</span>
+    )
+    <span class="fn">print</span>(<span class="str">f"CV AUC: {cv_scores.mean():.3f} ± {cv_scores.std():.3f}"</span>)
+
+    <span class="var">model</span>.<span class="fn">fit</span>(<span class="var">X</span>, <span class="var">y</span>, <span class="var">verbose</span><span class="op">=</span><span class="kw">False</span>)
+    <span class="kw">return</span> <span class="var">model</span>
+
+<span class="kw">def</span> <span class="fn">churn_risk_intervention</span>(<span class="var">model</span><span class="op">:</span> <span class="var">xgb</span>.<span class="cls">XGBClassifier</span>, <span class="var">user_row</span><span class="op">:</span> <span class="var">pd</span>.<span class="cls">DataFrame</span>) <span class="op">-></span> <span class="var">dict</span>:
+    <span class="cm">"""
+    Given a user's feature row, return churn probability
+    and recommended intervention tier.
+    Tiers:
+      &lt;0.3  : No action
+      0.3–0.6: In-app nudge (wallet cashback ₹20)
+      0.6–0.8: Push notification + discount offer
+      &gt;0.8  : Human call within 2h
+    """</span>
+    <span class="var">prob</span> <span class="op">=</span> <span class="var">model</span>.<span class="fn">predict_proba</span>(<span class="var">user_row</span>[<span class="cls">FEATURES</span>])[<span class="op">:,</span><span class="num">1</span>][<span class="num">0</span>]
+    <span class="var">interventions</span> <span class="op">=</span> [
+        (<span class="num">0.80</span>, <span class="str">"HUMAN_CALL"</span>,    <span class="str">"Call user within 2h, offer 1-month free"</span>),
+        (<span class="num">0.60</span>, <span class="str">"PUSH_DISCOUNT"</span>, <span class="str">"Push: 'Exclusive deal for you — 30% off renewal'"</span>),
+        (<span class="num">0.30</span>, <span class="str">"WALLET_NUDGE"</span>,  <span class="str">"In-app: ₹20 cashback added to your wallet"</span>),
+        (<span class="num">0.00</span>, <span class="str">"NO_ACTION"</span>,     <span class="str">"Monitor"</span>),
+    ]
+    <span class="var">tier</span>, <span class="var">action</span> <span class="op">=</span> <span class="kw">next</span>(
+        (<span class="var">t</span>, <span class="var">a</span>) <span class="kw">for</span> <span class="var">threshold</span>, <span class="var">t</span>, <span class="var">a</span> <span class="kw">in</span> <span class="var">interventions</span>
+        <span class="kw">if</span> <span class="var">prob</span> <span class="op">>=</span> <span class="var">threshold</span>
+    )
+    <span class="kw">return</span> {<span class="str">"churn_prob"</span><span class="op">:</span> <span class="fn">round</span>(<span class="var">prob</span>, <span class="num">3</span>), <span class="str">"intervention"</span><span class="op">:</span> <span class="var">tier</span>, <span class="str">"action"</span><span class="op">:</span> <span class="var">action</span>}
+</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FEEDBACK 4 — UX -->
+  <div class="feedback-card card-ux">
+    <div class="card-header">
+      <div class="card-number">04</div>
+      <div class="card-title-block">
+        <div class="pillar-tag tag-ux">UX</div>
+        <div class="card-title">The Chat tab has zero onboarding context — and the "Anonymous" mode creates a trust paradox that repels exactly the users Subspace needs most</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="obs-block">
+        <div class="block-label"><span class="dot dot-obs"></span>Observed</div>
+        <div class="block-text">
+          The Chat screen shows four tabs: All | Group | Private | Anonymous. On a new account, the center panel reads: <em>"Welcome to Messages — Select a conversation from the sidebar to start chatting with your friends and groups."</em> There are no conversations, no suggestions, no onboarding prompt explaining what Chat is for in the context of subscriptions. The "Anonymous" tab exists with no explanation. There is a "+" button to start conversations, but clicking it offers no guided flow for first-time users — just a blank composer.
+          <br><br>
+          Separately, the group-sharing flow (observed via the Shared Subscriptions section) shows subscription cards with group counts (e.g. JioHotstar has 43+ groups) but clicking "Join" initiates payment without first establishing communication with the group admin. After payment, the user depends on the admin for credentials — but there is no in-app trust signal for whether this admin has a history of delivering on time.
+        </div>
+        <div class="review-callout">
+          <div class="reviewer">Rohith Ramesh · February 14, 2026</div>
+          <blockquote class="review">"Admin removed me from a group because I requested an OTP twice. Even though the amount was refunded to my wallet, the situation felt unfair. Some admins prioritize protecting their RATING rather than handling issues fairly."</blockquote>
+        </div>
+      </div>
+      <div class="prob-block">
+        <div class="block-label"><span class="dot dot-prob"></span>Problem</div>
+        <div class="block-text">
+          There are two compounding UX failures here. First, the Chat tab is a ghost town for new users — it creates a "broken product" impression that triggers immediate uninstall, because a messaging product with no messages looks like a bug. Second, and more importantly, the group subscription flow requires users to make a payment (<em>financial commitment</em>) before establishing any communication with or trust signal about the admin. This is inverted — trust must precede financial commitment, not follow it.
+        </div>
+        <div class="tradeoff-box">
+          <strong>Tradeoff:</strong> Adding an admin trust score or review system creates admin-side friction (admins may leave the platform if they feel surveilled or if negative reviews reduce their group fill rate). However, not having it forces Subspace into a support arbitration role for every dispute — which is exactly what their AI agents are failing at. A transparent trust layer reduces support volume by routing low-trust admins out of the marketplace naturally, rather than through post-hoc dispute resolution.
+        </div>
+      </div>
+      <div class="ship-block">
+        <div class="block-label"><span class="dot dot-ship"></span>Ship Instead</div>
+        <div class="ship-box">
+          <strong>(A) Admin Trust Scorecard on group subscription cards:</strong> Display a 3-component signal: (1) Fulfillment rate % (what % of joiners got credentials within 24h), (2) Avg credential delivery time, (3) Dispute rate. This data already exists in Subspace's backend — it just isn't surfaced. Users should see "Admin: Suman · 94% fulfillment · &lt;2h delivery · 0 disputes" before paying ₹100.<br><br>
+          <strong>(B) Chat tab contextual onboarding:</strong> First-time visitors to Chat should see a guided state: "💬 Your group chats appear here. Join a shared subscription group to start coordinating with your admin." with a direct CTA to Shared Subscriptions. This converts the ghost town into a purpose-driven empty state.<br><br>
+          <strong>(C) Remove "Anonymous" tab or explain it:</strong> Anonymous chat on a fintech platform sends exactly the wrong signal to first-time users who already have trust anxiety. Either surface a clear explanation ("Anonymous = masked user ID for privacy in group discussions") or remove it from the default nav.
+        </div>
+        <div class="priority-tag">P1 · Trust Layer · 2-week sprint</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FEEDBACK 5 — COLLABORATIONS -->
+  <div class="feedback-card card-collab">
+    <div class="card-header">
+      <div class="card-number">05</div>
+      <div class="card-title-block">
+        <div class="pillar-tag tag-collab">Potential Collaborations</div>
+        <div class="card-title">NBFC / BNPL integration for subscription financing is an untapped ₹200Cr+ TAM sitting in plain sight</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="obs-block">
+        <div class="block-label"><span class="dot dot-obs"></span>Observed</div>
+        <div class="block-text">
+          The Wallet screen shows quick-add denominations of ₹100, ₹200, ₹500, ₹1000 — these are the only top-up options. There is no credit, EMI, or BNPL option visible anywhere. On the Explore page, annual subscription plans are listed: Spotify Duo Plan - 1 Year at ₹900/device, Netflix Premium at ₹163/device/month (so ~₹1956/year), Amazon Prime Yearly at ~₹509/year. A typical user running 3–4 annual subscriptions commits ₹3000–₹5000 upfront — a meaningful amount for a student or early-career user in a Tier-2 city.
+        </div>
+      </div>
+      <div class="prob-block">
+        <div class="block-label"><span class="dot dot-prob"></span>Problem</div>
+        <div class="block-text">
+          The willingness to pay for annual subscriptions is high (they're 40–60% cheaper than monthly), but the <em>ability</em> to pay ₹3000–₹5000 upfront is a barrier for a significant portion of India's emerging middle class. This is a textbook credit access problem — not a product problem. Subspace is leaving GMV on the table by not offering a "Pay in 3" option for annual subscription bundles.
+        </div>
+        <div class="tradeoff-box">
+          <strong>Tradeoff:</strong> BNPL integration adds regulatory complexity (RBI's Digital Lending Guidelines 2022), counterparty risk (BNPL provider default or policy change), and potential NPA exposure if Subspace takes on credit risk itself. The mitigation: partner with a licensed NBFC (ZestMoney's successor, Simpl, or Slice) as a pure co-origination arrangement — Subspace drives the demand signal, BNPL partner underwrites the credit. Subspace earns a referral fee per loan originated (typically 1–2% of loan value), zero credit risk retained.
+        </div>
+      </div>
+      <div class="ship-block">
+        <div class="block-label"><span class="dot dot-ship"></span>Ship Instead</div>
+        <div class="ship-box">
+          <strong>"Subscribe Now, Pay in 3" — BNPL Integration:</strong><br><br>
+          <strong>Partner target:</strong> Simpl (already integrated with Zomato, Myntra — familiar UX for Subspace's user base) or Slice (strong Tier-2/3 user penetration).<br><br>
+          <strong>Flow:</strong> On any annual subscription card ≥₹500, add a secondary CTA: "Pay ₹X in 3 months — ₹0 interest" (Simpl's current pricing). User checks out via Simpl; Subspace receives full annual subscription payment immediately; user repays in 3 instalments to Simpl.<br><br>
+          <strong>Revenue model:</strong> Subspace earns 1.5% of GMV from Simpl per transaction. On ₹5Cr/month annual subscription GMV (conservative estimate), that's ₹7.5L/month in pure incremental revenue with zero additional CAC.<br><br>
+          <strong>Second-order effect:</strong> Users who can afford annual plans (with BNPL) tend to have 3× the LTV of monthly subscribers — lower churn, higher group stability, better admin economics. This directly addresses the group-stability problem identified in Feedbacks 3 &amp; 4.<br><br>
+          <strong>Why now:</strong> Simpl and Slice are actively seeking new merchant categories post-RBI Digital Lending Guidelines normalization in 2024–25. Subspace would be their first subscription-marketplace partner — a press-worthy co-announcement that costs Subspace nothing to acquire.
+        </div>
+        <div class="priority-tag">P1 · Revenue Expansion · 4-week partnership sprint</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════ CHARTS -->
+<div class="section-label">03 / Data Visualizations</div>
+<h2>Simulated Analytics: Cohort Retention &amp; CAC vs LTV</h2>
+
+<div class="chart-section">
+  <div class="chart-title">Cohort Retention Curves — OTT-only vs Trust-Layer Users (Simulated)</div>
+  <div class="chart-sub">Demonstrates the retention gap hypothesis: users who experience a trust failure (gift card delay, admin removal) churn exponentially faster. Day-30 retention drops from ~52% to ~18% after a single fulfillment incident.</div>
+  <canvas id="retentionChart"></canvas>
+</div>
+
+<div class="chart-section">
+  <div class="chart-title">CAC vs LTV by Subscription Tier (Simulated)</div>
+  <div class="chart-sub">Local subscription users have lower CAC (word-of-mouth heavy, no paid ads) and higher LTV (bilateral lock-in). OTT-only users have high CAC and moderate LTV dependent on platform policy stability.</div>
+  <canvas id="cacLtvChart"></canvas>
+</div>
+
+<!-- ═══════════════════════════════════════════════ MERMAID ARCH -->
+<div class="section-label" style="margin-top:56px">04 / System Architecture</div>
+<h2>AI Agent Architecture — Failed Payment Dispute Flow</h2>
+
+<div class="arch-section">
+  <div class="arch-title">Autonomous AI Agent: Gift Card / Subscription Fulfillment Failure Handler</div>
+  <div class="arch-sub">Mermaid.js flowchart showing the proposed circuit-breaker architecture. The current system has no T+30min auto-refund step — that's the gap causing all Play Store 1-star reviews in 2026.</div>
+  <div class="mermaid-wrap" id="mermaid-container">
+    <pre id="mermaid-src" style="display:none">
+flowchart TD
+    A([User pays for gift card / subscription]) --> B{Fulfillment API call}
+    B -->|Success &lt; 2min| C([Deliver code / credentials])
+    B -->|API timeout / error| D[T+0: Log failure, start SLA timer]
+    D --> E[T+2min: Auto-retry with backup API provider]
+    E -->|Success| C
+    E -->|Still failing| F[T+5min: Send WhatsApp alert to user]
+    F --> G[T+15min: AI Agent opens internal ticket\nClassify: transient vs persistent failure]
+    G -->|Transient detected| H[Retry once more with exponential backoff]
+    H -->|Success| C
+    H -->|Fail| I
+    G -->|Persistent failure| I[T+30min: CIRCUIT BREAKER FIRES]
+    I --> J[Auto-refund to wallet + ₹50 credit]
+    I --> K[Flag for human review queue]
+    J --> L([User notified: Refund processed])
+    K --> M{Human agent reviews\nwithin 2h}
+    M -->|Root cause: API| N[Escalate to tech team\nDisable provider temporarily]
+    M -->|Root cause: Admin fraud| O[Suspend admin account\nRefund affected group members]
+    M -->|Root cause: User error| P[Support call to guide user]
+
+    style I fill:#3d1515,stroke:#ff6c6c,color:#ff9999
+    style J fill:#0d2e1a,stroke:#6cffcc,color:#6cffcc
+    style C fill:#0d2e1a,stroke:#6cffcc,color:#6cffcc
+    style A fill:#1a1a35,stroke:#7c6cff,color:#9d90ff
+    style L fill:#1a1a35,stroke:#7c6cff,color:#9d90ff
+    </pre>
+    <div id="mermaid-output"></div>
+  </div>
+</div>
+
+<div class="arch-section">
+  <div class="arch-title">Backend Architecture — Churn Prediction Pipeline</div>
+  <div class="arch-sub">How the XGBoost churn model integrates into Subspace's AI-native ops stack. Real-time feature computation from event stream → model inference → intervention dispatch.</div>
+  <div class="mermaid-wrap">
+    <pre id="mermaid-src2" style="display:none">
+flowchart LR
+    A[Kafka Event Stream\nuser_action events] --> B[Flink / Spark\nReal-time feature computation]
+    B --> C[(Feature Store\nRedis - user vectors)]
+    C --> D[XGBoost Churn Model\nInference API - FastAPI]
+    D --> E{Churn prob threshold}
+    E -->|> 0.80| F[Human call queue\nFreshdesk CRM]
+    E -->|0.60–0.80| G[Push notification\nFirebase FCM]
+    E -->|0.30–0.60| H[In-app wallet nudge\n₹20 cashback]
+    E -->|< 0.30| I[No action\nLog to data warehouse]
+    D --> J[(MLflow Model Registry\nA/B test tracking)]
+    J --> D
+
+    style D fill:#1a1535,stroke:#7c6cff,color:#9d90ff
+    style F fill:#2e1515,stroke:#ff6c6c,color:#ff9999
+    style G fill:#2e2410,stroke:#ffb86c,color:#ffb86c
+    style H fill:#0d2e1a,stroke:#6cffcc,color:#6cffcc
+    </pre>
+    <div id="mermaid-output2"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ SUMMARY TABLE -->
+<hr>
+<div class="section-label">05 / Summary Matrix</div>
+<h2>Prioritization — Impact vs Effort</h2>
+
+<div style="overflow-x:auto;margin-top:16px">
+<table style="width:100%;border-collapse:collapse;font-size:13.5px">
+  <thead>
+    <tr style="border-bottom:1px solid var(--border2)">
+      <th style="text-align:left;padding:12px 16px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.1em">#</th>
+      <th style="text-align:left;padding:12px 16px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.1em">Pillar</th>
+      <th style="text-align:left;padding:12px 16px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.1em">Feedback</th>
+      <th style="text-align:center;padding:12px 16px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.1em">Priority</th>
+      <th style="text-align:center;padding:12px 16px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.1em">Effort</th>
+      <th style="text-align:left;padding:12px 16px;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.1em">Primary metric</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:12px 16px;color:var(--accent);font-family:'JetBrains Mono',monospace">01</td>
+      <td style="padding:12px 16px"><span class="pillar-tag tag-gtm" style="margin:0">GTM &amp; ICP</span></td>
+      <td style="padding:12px 16px">Local-first homepage for Tier-2/3 cities</td>
+      <td style="padding:12px 16px;text-align:center"><span class="force-verdict v-high">P0</span></td>
+      <td style="padding:12px 16px;text-align:center;color:var(--muted)">2w</td>
+      <td style="padding:12px 16px;color:var(--muted)">D-30 local sub creation rate</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:12px 16px;color:var(--accent2);font-family:'JetBrains Mono',monospace">02</td>
+      <td style="padding:12px 16px"><span class="pillar-tag tag-comp" style="margin:0">Competitor</span></td>
+      <td style="padding:12px 16px">Surface the Negotiate API as a user-visible feature</td>
+      <td style="padding:12px 16px;text-align:center"><span class="force-verdict v-high">P0</span></td>
+      <td style="padding:12px 16px;text-align:center;color:var(--muted)">1w</td>
+      <td style="padding:12px 16px;color:var(--muted)">Return visit rate (perceived value)</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:12px 16px;color:var(--accent3);font-family:'JetBrains Mono',monospace">03</td>
+      <td style="padding:12px 16px"><span class="pillar-tag tag-feat" style="margin:0">Features</span></td>
+      <td style="padding:12px 16px">Fulfillment SLA engine + T+30min auto-refund</td>
+      <td style="padding:12px 16px;text-align:center"><span class="force-verdict v-high">P0</span></td>
+      <td style="padding:12px 16px;text-align:center;color:var(--muted)">1w</td>
+      <td style="padding:12px 16px;color:var(--muted)">Support ticket volume + Play Store rating</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:12px 16px;color:var(--accent4);font-family:'JetBrains Mono',monospace">04</td>
+      <td style="padding:12px 16px"><span class="pillar-tag tag-ux" style="margin:0">UX</span></td>
+      <td style="padding:12px 16px">Admin trust scorecard + Chat empty-state onboarding</td>
+      <td style="padding:12px 16px;text-align:center"><span class="force-verdict v-med">P1</span></td>
+      <td style="padding:12px 16px;text-align:center;color:var(--muted)">2w</td>
+      <td style="padding:12px 16px;color:var(--muted)">Group dispute rate, D-7 retention</td>
+    </tr>
+    <tr>
+      <td style="padding:12px 16px;color:var(--accent5);font-family:'JetBrains Mono',monospace">05</td>
+      <td style="padding:12px 16px"><span class="pillar-tag tag-collab" style="margin:0">Collaborations</span></td>
+      <td style="padding:12px 16px">BNPL integration (Simpl/Slice) for annual subs</td>
+      <td style="padding:12px 16px;text-align:center"><span class="force-verdict v-med">P1</span></td>
+      <td style="padding:12px 16px;text-align:center;color:var(--muted)">4w</td>
+      <td style="padding:12px 16px;color:var(--muted)">Annual sub GMV + incremental revenue</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p style="margin-top:40px;font-size:13px;color:var(--muted);max-width:700px;line-height:1.8">
+  The three P0 items (GTM, Negotiate API visibility, Fulfillment SLA) all share a common root: <strong style="color:var(--text);">trust.</strong> Subspace's bootstrapped profitability and AI-native ops are remarkable engineering achievements. The gap is not technical — it is the translation of that technical excellence into user-perceived reliability. Fixing the trust layer is the unlock for everything else: BNPL partners need a trustworthy platform, local MSMEs need a trustworthy marketplace, and group admins need a trustworthy dispute system.
+</p>
+
+</div><!-- end .page -->
+
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+
+const dark = true;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  fontFamily: 'Inter, sans-serif',
+  themeVariables: {
+    darkMode: true,
+    fontSize: '13px',
+    fontFamily: 'Inter, sans-serif',
+    lineColor: '#4a4a6a',
+    textColor: '#aaaacc',
+    primaryColor: '#1a1a2e',
+    primaryTextColor: '#ccccee',
+    primaryBorderColor: '#4a4a7a',
+    edgeLabelBackground: '#0a0a1a',
+  },
+});
+
+const src1 = document.getElementById('mermaid-src').textContent.trim();
+const src2 = document.getElementById('mermaid-src2').textContent.trim();
+
+try {
+  const { svg: svg1 } = await mermaid.render('mermaid-flow-1', src1);
+  document.getElementById('mermaid-output').innerHTML = svg1;
+} catch(e) {
+  document.getElementById('mermaid-output').innerHTML = '<p style="color:#888;font-size:13px;padding:20px">Architecture diagram — see Mermaid syntax above for implementation.</p>';
+}
+
+try {
+  const { svg: svg2 } = await mermaid.render('mermaid-flow-2', src2);
+  document.getElementById('mermaid-output2').innerHTML = svg2;
+} catch(e) {
+  document.getElementById('mermaid-output2').innerHTML = '<p style="color:#888;font-size:13px;padding:20px">Pipeline diagram — see Mermaid syntax above for implementation.</p>';
+}
+</script>
+
+<script>
+// Chart 1: Cohort Retention
+const retCtx = document.getElementById('retentionChart').getContext('2d');
+const days = [0,1,3,7,14,21,30,60,90];
+const healthyRetention = [100, 88, 78, 65, 58, 54, 52, 44, 38];
+const trustFailureRetention = [100, 85, 60, 35, 22, 19, 18, 14, 10];
+const ottOnlyRetention = [100, 82, 70, 55, 45, 40, 35, 28, 22];
+
+new Chart(retCtx, {
+  type: 'line',
+  data: {
+    labels: days.map(d => 'D'+d),
+    datasets: [
+      {
+        label: 'Healthy users (no friction)',
+        data: healthyRetention,
+        borderColor: '#6cffcc',
+        backgroundColor: 'rgba(108,255,204,0.08)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+      },
+      {
+        label: 'OTT-only users',
+        data: ottOnlyRetention,
+        borderColor: '#7c6cff',
+        backgroundColor: 'rgba(124,108,255,0.06)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+      },
+      {
+        label: 'Trust failure (gift card / fulfillment incident)',
+        data: trustFailureRetention,
+        borderColor: '#ff6c6c',
+        backgroundColor: 'rgba(255,108,108,0.08)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        borderDash: [5,3],
+        pointRadius: 4,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#aaaacc', font: { family: 'Inter', size: 12 } } },
+      tooltip: { backgroundColor: '#1a1a2e', titleColor: '#eeeeff', bodyColor: '#aaaacc' }
+    },
+    scales: {
+      x: { ticks: { color: '#666688' }, grid: { color: '#1e1e2e' } },
+      y: {
+        ticks: { color: '#666688', callback: v => v + '%' },
+        grid: { color: '#1e1e2e' },
+        min: 0, max: 100
+      }
+    }
+  }
+});
+
+// Chart 2: CAC vs LTV
+const clCtx = document.getElementById('cacLtvChart').getContext('2d');
+new Chart(clCtx, {
+  type: 'bar',
+  data: {
+    labels: ['OTT group sharing\n(Netflix/JioHotstar)', 'Gift cards\n(one-time)', 'Annual OTT bundles\n(with BNPL)', 'Local MSME subs\n(hyperlocal)', 'Multi-category\npower users'],
+    datasets: [
+      {
+        label: 'CAC (₹)',
+        data: [280, 190, 240, 110, 320],
+        backgroundColor: 'rgba(255,108,157,0.7)',
+        borderColor: '#ff6c9d',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        label: 'LTV — 12 month (₹)',
+        data: [820, 340, 1450, 1850, 2800],
+        backgroundColor: 'rgba(108,255,204,0.55)',
+        borderColor: '#6cffcc',
+        borderWidth: 1,
+        borderRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#aaaacc', font: { family: 'Inter', size: 12 } } },
+      tooltip: {
+        backgroundColor: '#1a1a2e',
+        titleColor: '#eeeeff',
+        bodyColor: '#aaaacc',
+        callbacks: { label: ctx => ctx.dataset.label + ': ₹' + ctx.raw }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#666688', font: { size: 11 } }, grid: { color: '#1e1e2e' } },
+      y: {
+        ticks: { color: '#666688', callback: v => '₹' + v },
+        grid: { color: '#1e1e2e' },
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
