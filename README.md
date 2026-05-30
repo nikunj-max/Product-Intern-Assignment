@@ -1,7 +1,7 @@
 # Subspace.money — Product Teardown
 
 > **Product Intern Assignment · May 2026**
-> Submitted by **Nikunj Bhardwaj** · Automation & Robotics Engineering
+> Submitted by **Nikunj Bhardwaj** ·
 
 ---
 
