@@ -1,6 +1,6 @@
 # Subspace.money — Product Teardown
 
-> **Product Intern Assignment · May 2026**
+> **Product Intern Assignment ·**
 > Submitted by **Nikunj Bhardwaj** ·
 
 ---
