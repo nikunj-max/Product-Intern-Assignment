@@ -6,10 +6,18 @@
 ---
 
 ## Overview
-
 A comprehensive product teardown of [Subspace.money](https://subspace.money) — India's bootstrapped subscription marketplace (₹36.5 Cr ARR, FY25). The analysis covers five product pillars with specific, observed problems, tradeoff thinking, and actionable solutions — including production-ready ML code and system architecture diagrams.
 
 The teardown was conducted after real app usage (web + Android), cross-referenced with 2026 Play Store reviews, and grounded in a Porter's Five Forces strategic framework.
+
+---
+## HTML File Contains
+
+
+
+
+
+
 
 ---
 
